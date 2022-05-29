@@ -22,12 +22,15 @@ Send XYM with Bluetooth button
 
 ## Usage
 
-### Step1 If you have Symbol wallet
+### Step1 Prepare Symbol wallet
+
+#### If you have Symbol wallet
 1. Creating a private key file
     1. Enter your private key in `utils/make_pem_file` to generate a private key file
 
-### Step1 If you don't have Symbol wallet
+#### If you don't have Symbol wallet
 1. Creating a Symbol Wallet
+
     Create a Symbol wallet by following the instructions here
 
     https://docs.symbol.dev/ja/wallets.html

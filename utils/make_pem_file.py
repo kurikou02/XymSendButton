@@ -2,7 +2,7 @@
 秘密鍵ファイルの生成
 """
 
-from utils.utils import genarate_private_key_file
+from utils import genarate_private_key_file
 
 # プライベートキー
 pk = '***'
