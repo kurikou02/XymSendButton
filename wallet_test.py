@@ -20,8 +20,14 @@ from utils.utils import get_node_properties
 # 送金量リミット
 AMOUNT_LIMIT = 1
 
-# Blutoothボタンが押されたら繰り返しXYMを投げる
-def run():
+"""
+ウォレットの動作テスト関数
+========================================================
+ハッシュ値によるトランザクション状態の調べ方
+https://sym-test-01.opening-line.jp:3001/transactionStatus/<hash>
+https://marrons-xym-farm001.com:3001/transactionStatus/<hash>
+"""
+def wallet_test():
 
     # 設定ファイル読み込み
     config = configparser.ConfigParser()
@@ -44,16 +50,20 @@ def run():
     print("Generation hash => " + str(GENERATOIN_HASH))
     print("Using node url => " + str(NODE_URL))
 
-    # Symbolウォレット生成
+    # ウォレット生成
     wallet = Wallet(  NETWORK_TYPE, wallet_config.get('node_url'), wallet_config.get('pem_file'),  wallet_config.get('pass_phrase') )
-    # 所有モザイク情報の取得
+    print('check account info by address')
     account_info = json.loads(wallet.check_my_account_info_with_pubkey())
+    print(account_info)
     mosaic_infos = account_info[0]['account']['mosaics']
 
     # 送金設定
     fee = int(float(send_config.get('max_fee')) * 1000000)    
     amount = float(send_config.get('amount'))
     mosaics =  [{'mosaic_id':MOSAICID,'amount':int(amount * 1000000)}]
+
+    # 送信先アドレス
+    recipient_address = send_config.get('recipient_address')
 
     # 送金量セーフティチェック
     if amount > AMOUNT_LIMIT:
@@ -69,35 +79,14 @@ def run():
                 print('Your account`s XYM amount is ' + str( mosaic_info['amount']))
                 print('Check your Account and Selected Network Type')
 
-    # Blutoothボタンの入力待ち受け開始
-    print('******** Start waiting for input ******** ')
-    while True:
-        try:
-            # ls /dev/input でevent番号要確認
-            device = evdev.InputDevice('/dev/input/event0')
-            print('device = ' + str(device))
-
-            # 送信先アドレス
-            _recipient_address = send_config.get('recipient_address')
-            
-            for event in device.read_loop():
-                if event.type == evdev.ecodes.EV_KEY:
-                    if event.value == 1: # 0:KEYUP, 1:KEYDOWN
-                        print('event code = ' + str(event.code)) # KEY_ENTER->28
-
-                        if event.code == evdev.ecodes.KEY_ENTER:
-                            # XYM送金
-                            deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
-                            status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
-                            print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
-                            print('waiting for input... (Ctr + Z to exit)')
-                            time.sleep(3)
-        except:
-            print('Exception! Retry....')
-            time.sleep(1)
+    # XYM送金
+    print('my address :' + wallet.get_my_address())
+    print('to address :' + recipient_address)
+    deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
+    status = wallet.send_mosaic_transacton(deadline, fee, recipient_address, mosaics, send_config.get('msg_txt'))
+    print('status:' + str(status) )
 
 if __name__ == '__main__':
-    
-    # BlutoothボタンでXYM送金
-    run()
-    
+
+    # テスト送金
+    wallet_test()

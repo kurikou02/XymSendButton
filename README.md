@@ -1,3 +1,5 @@
+[README（日本語版）はこちら](https://github.com/kurikou02/XymSendButton/blob/main/README-ja.md)
+
 # XymSendButton
 Send XYM with Bluetooth button
 
