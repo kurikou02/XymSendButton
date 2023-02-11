@@ -133,5 +133,7 @@ dmypy.json
 
 # Config file
 .config/
-
+.config/config.ini
+.utils/make_pem_file.py
+.utils/make_config.py
 
