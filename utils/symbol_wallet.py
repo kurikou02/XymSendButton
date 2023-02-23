@@ -139,7 +139,3 @@ class Wallet:
         response = conn.getresponse()
         data = response.read()
         return data.decode()
-
-    def get_namespace_id(self, namespace):
-        None
-        #return sc.NamespaceId(str(namespace))
