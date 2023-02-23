@@ -20,9 +20,9 @@ msg_txt = 'Send XYM by Bluetooth Button!'
 
 # テストネット向け設定
 if NETWORK_TYPE == 'testnet':
-    node_url =  'sym-test-04.opening-line.jp'
+    node_url =  'sym-test-03.opening-line.jp'
     pem_file = 'TestnetAccount'
-    recipient_address = '***************************************'
+    recipient_address = 'TBXFN2GVITXPEQPRLOJXDSZRC7G3XB5P6BSNOOI'
 
 # メインネット向け設定
 if NETWORK_TYPE == 'mainnet':

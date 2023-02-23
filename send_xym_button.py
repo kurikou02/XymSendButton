@@ -17,6 +17,7 @@ from symbolchain.facade.SymbolFacade import SymbolFacade
 
 from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
+from utils.utils import is_valid_symbol_address
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
@@ -119,6 +120,7 @@ def run(is_aggregate=False):
                         print('event code = ' + str(event.code)) # KEY_ENTER->28
 
                         if event.code == evdev.ecodes.KEY_ENTER:
+                            deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
                             # XYM送金(アグリゲートトランザクション)
                             if is_aggregate == True:
                                 print('Send Aggregate Transaction!')
@@ -126,12 +128,11 @@ def run(is_aggregate=False):
                                 page = 0
                                 for addresses in address_book:
                                     print('Address Book page ' + str(page) )
-                                    print(addresses)
                                     status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
-                                    print('Send ' + str(total_amount) +'XYM status = ' + str(status) )
+                                    print('Send ' + str(total_amount) + 'XYM status = ' + str(status) )
+                                    page += 1
                             else:
                                 # XYM送金(単発)
-                                deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
                                 status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
                                 print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
                             
@@ -147,8 +148,8 @@ if __name__ == '__main__':
 
     # コマンドライン引数受け取り
     args = sys.argv
-    if len(args)>0:
-        is_aggregate = (args[0] == '--aggregate') 
+    if len(args)>1:
+        is_aggregate = (args[1] == '--aggregate') 
         print('isAggregate = ' + str(is_aggregate))
     
     # BlutoothボタンでXYM送金
