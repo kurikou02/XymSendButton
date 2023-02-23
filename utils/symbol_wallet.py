@@ -74,7 +74,33 @@ class Wallet:
             'message': bytes(1) + msg_txt.encode('utf8')
         })
         return tx2
-        
+
+    def _add_embedded_transfers(self, addresses, mosaics, message):
+        embedded_transactions = []
+        for recipient_address in addresses:
+            embedded_transaction = self._facade.transaction_factory.create_embedded({
+                'type': 'transfer_transaction',
+                'signer_public_key': self._km.get_my_pubkey(),
+                'recipient_address': recipient_address,
+                'mosaics': mosaics,
+                'message': bytes(1) + message.encode('utf8')
+                })
+            embedded_transactions.append(embedded_transaction)
+        return embedded_transactions
+
+    def _build_mosaic_aggregate_tx(self, deadline, fee, addresses, mosaics, msg_txt):
+        embedded_transactions = self._add_embedded_transfers(addresses, mosaics, msg_txt)
+        merkle_hash = self._facade.hash_embedded_transactions(embedded_transactions)
+        tx2 = self._facade.transaction_factory.create({
+            'type': 'aggregate_complete_transaction',
+            'signer_public_key': self._km.get_my_pubkey(),
+            'fee': fee,
+            'deadline': deadline,
+            'transactions_hash': merkle_hash,
+            'transactions': embedded_transactions
+        })
+        return tx2
+
     def _send_tx(self, json_payload):
         headers = {'Content-type': 'application/json'}
         conn = http.client.HTTPConnection(self._node_url,3000) 
@@ -93,6 +119,14 @@ class Wallet:
         status = self._send_tx(json_payload)
         return status
 
+    def send_mosaic_aggregate_transacton(self, deadline, fee, addresses, mosaics, msg_txt):
+        tx2 = self._build_mosaic_aggregate_tx(deadline, fee, addresses, mosaics, msg_txt)
+        # ハードフォークによりアグリゲートトランザクションはver.2を使用する。
+        tx2.version = 2
+        json_payload = self._build_req_tx_msg(tx2)
+        status = self._send_tx(json_payload)
+        return status
+
     def get_transactions_to_my_address(self, my_address):
         req_path = '/transactions/confirmed?recipientAddress=' + my_address
         conn = http.client.HTTPConnection(self._node_url,3000) 
@@ -100,3 +134,7 @@ class Wallet:
         response = conn.getresponse()
         data = response.read()
         return data.decode()
+
+    def get_namespace_id(self, namespace):
+        None
+        #return sc.NamespaceId(str(namespace))

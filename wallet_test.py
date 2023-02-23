@@ -4,6 +4,7 @@ import pathlib
 import os
 import evdev
 import time
+import csv
 
 import datetime
 import http.client
@@ -12,13 +13,35 @@ import json
 import configparser
 
 from binascii import hexlify
-from symbolchain.facade.SymbolFacade import SymbolFacade
 
 from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
+from utils.utils import is_valid_symbol_address
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
+
+# アドレスリストの読み込み(ネームスペースは未対応)
+def read_addresses(network_type):
+    book = []
+    addresses = []
+    page = 0
+    count = 0
+    fname = 'addresses_' + str(network_type) + '.csv'
+    with open('addresses/'+fname) as f:
+        for line in f:
+            # ネームスペースは除外する
+            if is_valid_symbol_address(line) == False:
+                continue
+            addresses.append(line.replace('\n', ''))
+            count+=1
+            # 100件超えたらページ切り替え(アグボンの上限）
+            if count > 99:
+                book.append(addresses)
+                addresses.clear()
+    book.append(addresses)
+    return (book, count)
+
 
 """
 ウォレットの動作テスト関数
@@ -27,7 +50,7 @@ AMOUNT_LIMIT = 1
 https://sym-test-01.opening-line.jp:3001/transactionStatus/<hash>
 https://marrons-xym-farm001.com:3001/transactionStatus/<hash>
 """
-def wallet_test():
+def wallet_test(recipient_address='', is_aggregate=False):
 
     # 設定ファイル読み込み
     config = configparser.ConfigParser()
@@ -60,33 +83,63 @@ def wallet_test():
     # 送金設定
     fee = int(float(send_config.get('max_fee')) * 1000000)    
     amount = float(send_config.get('amount'))
+    total_amount = amount
     mosaics =  [{'mosaic_id':MOSAICID,'amount':int(amount * 1000000)}]
 
     # 送信先アドレス
-    recipient_address = send_config.get('recipient_address')
+    if recipient_address == '':
+        recipient_address = send_config.get('recipient_address')
+
+    # アグリゲートトランザクションの場合はアドレスリスト取得
+    address_book = []
+    if is_aggregate == True:
+        (address_book, total_count) = read_addresses(NETWORK_TYPE)
+        # 合計送金料の再計算
+        total_amount = amount * total_count
+        print(address_book)
+        print(total_amount)
 
     # 送金量セーフティチェック
-    if amount > AMOUNT_LIMIT:
+    if total_amount > AMOUNT_LIMIT:
         print('ERROR:Amount is Over the limit. limit is ' + str(AMOUNT_LIMIT) + ' XYM.')
         return      
 
     # 残高チェック
     for mosaic_info in mosaic_infos:
         if mosaic_info['id'] == MOSAICID :
-            if amount > mosaic_info['amount']:
+            if total_amount > mosaic_info['amount']:
                 print('ERROR:Insufficient balance.')
-                print('Remittance amount is ' + str(amount))
+                print('Remittance amount is ' + str(total_amount))
                 print('Your account`s XYM amount is ' + str( mosaic_info['amount']))
                 print('Check your Account and Selected Network Type')
 
-    # XYM送金
+    # 送金時間
+    deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
+
+    # XYM送金(アグリゲートトランザクション)
+    if is_aggregate == True:
+        print('アグリゲートトランザクション送るよ')
+        print('my address :' + wallet.get_my_address())
+        page = 0
+        for addresses in address_book:
+            print('Address Book page ' + str(page) )
+            print(addresses)
+            status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
+            print('status:' + str(status) )
+        return
+
+    # XYM送金（単発）
     print('my address :' + wallet.get_my_address())
     print('to address :' + recipient_address)
-    deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
     status = wallet.send_mosaic_transacton(deadline, fee, recipient_address, mosaics, send_config.get('msg_txt'))
     print('status:' + str(status) )
 
 if __name__ == '__main__':
 
-    # テスト送金
-    wallet_test()
+    # テスト送金(単発)
+    #wallet_test()
+
+    # テスト送金（アグリゲート）
+    wallet_test('',True)
+
+    #read_addresses('testnet')
