@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import pathlib
 import os
 import evdev
@@ -20,8 +21,29 @@ from utils.utils import get_node_properties
 # 送金量リミット
 AMOUNT_LIMIT = 1
 
+# アドレスリストの読み込み(ネームスペースは未対応)
+def read_addresses(network_type):
+    book = []
+    addresses = []
+    page = 0
+    count = 0
+    fname = 'addresses_' + str(network_type) + '.csv'
+    with open('addresses/'+fname) as f:
+        for line in f:
+            # ネームスペースは除外する
+            if is_valid_symbol_address(line) == False:
+                continue
+            addresses.append(line.replace('\n', ''))
+            count+=1
+            # 100件超えたらページ切り替え(アグボンの上限）
+            if count > 99:
+                book.append(addresses)
+                addresses.clear()
+    book.append(addresses)
+    return (book, count)
+
 # Blutoothボタンが押されたら繰り返しXYMを投げる
-def run():
+def run(is_aggregate=False):
 
     # 設定ファイル読み込み
     config = configparser.ConfigParser()
@@ -53,19 +75,30 @@ def run():
     # 送金設定
     fee = int(float(send_config.get('max_fee')) * 1000000)    
     amount = float(send_config.get('amount'))
+    total_amount = amount
     mosaics =  [{'mosaic_id':MOSAICID,'amount':int(amount * 1000000)}]
 
+    # アグリゲートトランザクションの場合はアドレスリスト取得
+    address_book = []
+    if is_aggregate == True:
+        (address_book, total_count) = read_addresses(NETWORK_TYPE)
+        # 合計送金料の再計算
+        total_amount = amount * total_count
+        print(address_book)
+        print(total_amount)
+
+
     # 送金量セーフティチェック
-    if amount > AMOUNT_LIMIT:
+    if total_amount > AMOUNT_LIMIT:
         print('ERROR:Amount is Over the limit. limit is ' + str(AMOUNT_LIMIT) + ' XYM.')
         return      
 
     # 残高チェック
     for mosaic_info in mosaic_infos:
         if mosaic_info['id'] == MOSAICID :
-            if amount > mosaic_info['amount']:
+            if total_amount > mosaic_info['amount']:
                 print('ERROR:Insufficient balance.')
-                print('Remittance amount is ' + str(amount))
+                print('Remittance amount is ' + str(total_amount))
                 print('Your account`s XYM amount is ' + str( mosaic_info['amount']))
                 print('Check your Account and Selected Network Type')
 
@@ -86,10 +119,22 @@ def run():
                         print('event code = ' + str(event.code)) # KEY_ENTER->28
 
                         if event.code == evdev.ecodes.KEY_ENTER:
-                            # XYM送金
-                            deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
-                            status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
-                            print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
+                            # XYM送金(アグリゲートトランザクション)
+                            if is_aggregate == True:
+                                print('Send Aggregate Transaction!')
+                                print('my address :' + wallet.get_my_address())
+                                page = 0
+                                for addresses in address_book:
+                                    print('Address Book page ' + str(page) )
+                                    print(addresses)
+                                    status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
+                                    print('Send ' + str(total_amount) +'XYM status = ' + str(status) )
+                            else:
+                                # XYM送金(単発)
+                                deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
+                                status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
+                                print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
+                            
                             print('waiting for input... (Ctr + Z to exit)')
                             time.sleep(3)
         except:
@@ -97,7 +142,15 @@ def run():
             time.sleep(1)
 
 if __name__ == '__main__':
+
+    is_aggregate = False
+
+    # コマンドライン引数受け取り
+    args = sys.argv
+    if len(args)>0:
+        is_aggregate = (args[0] == '--aggregate') 
+        print('isAggregate = ' + str(is_aggregate))
     
     # BlutoothボタンでXYM送金
-    run()
+    run( is_aggregate )
     

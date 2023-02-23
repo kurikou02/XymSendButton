@@ -132,11 +132,11 @@ dmypy.json
 *.pem
 
 # Config file
-.config/
-.config/config.ini
-.utils/make_pem_file.py
-.utils/make_config.py
+config/
+config/config.ini
+utils/make_pem_file.py
+utils/make_config.py
 
-.addresses/
+addresses/
 addresses/addresses_mainnet.csv
 addresses/addresses_mainnet.csv
