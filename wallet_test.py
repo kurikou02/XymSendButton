@@ -17,31 +17,10 @@ from binascii import hexlify
 from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
 from utils.utils import is_valid_symbol_address
+from utils.utils import read_addresslist
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
-
-# アドレスリストの読み込み(ネームスペースは未対応)
-def read_addresses(network_type):
-    book = []
-    addresses = []
-    page = 0
-    count = 0
-    fname = 'addresses_' + str(network_type) + '.csv'
-    with open('addresses/'+fname) as f:
-        for line in f:
-            # ネームスペースは除外する
-            if is_valid_symbol_address(line) == False:
-                continue
-            addresses.append(line.replace('\n', ''))
-            count+=1
-            # 100件超えたらページ切り替え(アグボンの上限）
-            if count > 99:
-                book.append(addresses)
-                addresses.clear()
-    book.append(addresses)
-    return (book, count)
-
 
 """
 ウォレットの動作テスト関数
@@ -93,7 +72,7 @@ def wallet_test(recipient_address='', is_aggregate=False):
     # アグリゲートトランザクションの場合はアドレスリスト取得
     address_book = []
     if is_aggregate == True:
-        (address_book, total_count) = read_addresses(NETWORK_TYPE)
+        (address_book, total_count) = read_addresslist(NETWORK_TYPE)
         # 合計送金料の再計算
         total_amount = amount * total_count
         print(address_book)
@@ -126,6 +105,7 @@ def wallet_test(recipient_address='', is_aggregate=False):
             print(addresses)
             status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
             print('status:' + str(status) )
+            page+=1
         return
 
     # XYM送金（単発）
@@ -137,9 +117,9 @@ def wallet_test(recipient_address='', is_aggregate=False):
 if __name__ == '__main__':
 
     # テスト送金(単発)
-    #wallet_test()
+    wallet_test()
 
     # テスト送金（アグリゲート）
-    wallet_test('',True)
+    #wallet_test('',True)
 
     #read_addresses('testnet')

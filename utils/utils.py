@@ -59,3 +59,29 @@ def get_node_properties( node ):
 def is_valid_symbol_address(address):
 	symbol_address_regex = re.compile('^([N|T][A-Za-z0-9]{38})$')
 	return True if symbol_address_regex.match(address) else False
+
+# アドレスリストの読み込み(ネームスペースは未対応)
+def read_addresslist(network_type):
+    address_book = []
+    page = 0
+    total_count = 0
+    fname = 'addresses_' + str(network_type) + '.csv'
+    with open('addresses/'+fname) as f:
+        address_list = []
+        count = 0
+        for line in f:
+            # ネームスペースは除外する
+            if is_valid_symbol_address(line) == False:
+                continue
+            address_list.append(line.replace('\n', ''))
+            count+=1
+            # 10件超えたらページ切り替え(アグボンの上限）
+            if count > 99:
+                total_count += count
+                count = 0
+                address_book.append(address_list)
+                address_list = []
+ 
+        total_count += count
+        address_book.append(address_list)
+    return (address_book, total_count)

@@ -18,30 +18,10 @@ from symbolchain.facade.SymbolFacade import SymbolFacade
 from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
 from utils.utils import is_valid_symbol_address
+from utils.utils import read_addresslist
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
-
-# アドレスリストの読み込み(ネームスペースは未対応)
-def read_addresses(network_type):
-    book = []
-    addresses = []
-    page = 0
-    count = 0
-    fname = 'addresses_' + str(network_type) + '.csv'
-    with open('addresses/'+fname) as f:
-        for line in f:
-            # ネームスペースは除外する
-            if is_valid_symbol_address(line) == False:
-                continue
-            addresses.append(line.replace('\n', ''))
-            count+=1
-            # 100件超えたらページ切り替え(アグボンの上限）
-            if count > 99:
-                book.append(addresses)
-                addresses.clear()
-    book.append(addresses)
-    return (book, count)
 
 # Blutoothボタンが押されたら繰り返しXYMを投げる
 def run(is_aggregate=False):
@@ -82,12 +62,12 @@ def run(is_aggregate=False):
     # アグリゲートトランザクションの場合はアドレスリスト取得
     address_book = []
     if is_aggregate == True:
-        (address_book, total_count) = read_addresses(NETWORK_TYPE)
+        (address_book, total_count) = read_addresslist(NETWORK_TYPE)
         # 合計送金料の再計算
         total_amount = amount * total_count
-        print(address_book)
-        print(total_amount)
-
+        #print(address_book)
+        print('total count = ' + str(total_count))
+        print('total amount = ' + str(total_amount))
 
     # 送金量セーフティチェック
     if total_amount > AMOUNT_LIMIT:
@@ -120,19 +100,21 @@ def run(is_aggregate=False):
                         print('event code = ' + str(event.code)) # KEY_ENTER->28
 
                         if event.code == evdev.ecodes.KEY_ENTER:
-                            deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
                             # XYM送金(アグリゲートトランザクション)
                             if is_aggregate == True:
                                 print('Send Aggregate Transaction!')
                                 print('my address :' + wallet.get_my_address())
                                 page = 0
-                                for addresses in address_book:
+                                for address_list in address_book:
                                     print('Address Book page ' + str(page) )
-                                    status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
+                                    deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
+                                    status = wallet.send_mosaic_aggregate_transacton(deadline, fee, address_list, mosaics, send_config.get('msg_txt'))
                                     print('Send ' + str(total_amount) + 'XYM status = ' + str(status) )
                                     page += 1
+                                    time.sleep(3)
                             else:
                                 # XYM送金(単発)
+                                deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
                                 status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
                                 print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
                             

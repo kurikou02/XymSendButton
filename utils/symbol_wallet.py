@@ -111,6 +111,11 @@ class Wallet:
     def _build_req_tx_msg(self, tx):
         signature = self._km.compute_signature(tx)
         json_payload = self._facade.transaction_factory.attach_signature(tx, signature)
+        print("*** tx ***")
+        #print(tx)
+        #print(hexlify(tx.serialize()))
+        #print('---- ' * 20)        
+        print(f'Hash: {self._facade.hash_transaction(tx)}')
         return json_payload
 
     def send_mosaic_transacton(self, deadline, fee, recipient_address, mosaics, msg_txt):
