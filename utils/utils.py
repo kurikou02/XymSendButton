@@ -3,6 +3,8 @@ from pathlib import Path
 import requests
 import json
 import re
+import numpy as np
+
 
 from symbolchain.CryptoTypes import PrivateKey
 from symbolchain.PrivateKeyStorage import PrivateKeyStorage
@@ -11,7 +13,6 @@ from symbolchain.symbol.KeyPair import KeyPair
 def read_contents(filepath) -> str:
 	with open(filepath, 'rt', encoding='utf8') as infile:
 		return infile.read()
-
 
 def read_private_key(filepath, password=None) -> KeyPair:
 	if not isinstance(filepath, Path):
@@ -37,7 +38,7 @@ def genarate_private_key_file(filepath, private_key='', pass_phrase=''):
 	_p_storage = PrivateKeyStorage(filepath.parent, pass_phrase)
 	_p_storage.save(filepath.stem, prikey )
 
-# ノードからプロパティを取得
+# ノードからネットワークプロパティを取得
 def get_node_properties( node ):
     """
     network type, epock ajustment, currency mosaic id, generation hashを取得する
@@ -54,13 +55,21 @@ def get_node_properties( node ):
     generation_hash_seed = str(contents["network"]["generationHashSeed"].replace("'", ""))
     return network, epoch_adjustment,currency_mosaic_id, generation_hash_seed, node_url 
 
-
 # Symbolアドレスバリデーションチェック
 def is_valid_symbol_address(address):
 	symbol_address_regex = re.compile('^([N|T][A-Za-z0-9]{38})$')
 	return True if symbol_address_regex.match(address) else False
 
-# アドレスリストの読み込み(ネームスペースは未対応)
+# ネームスペースからint値への変換
+def aliasToRecipient(namespaceId: np.ndarray, networkType: int) -> np.ndarray:
+    # 0x91 | namespaceId on 8 bytes | 15 bytes 0-pad = 24 bytes
+    padded = np.zeros(24, dtype=np.uint8)
+    padded[0] = networkType | 0x01
+    padded[1:9] = namespaceId[::-1]
+    padded[9:24] = np.tile(np.array([0x00], dtype=np.uint8), 15)
+    return padded
+
+# アドレスリストの読み込み
 def read_addresslist(network_type):
     address_book = []
     page = 0
@@ -69,19 +78,15 @@ def read_addresslist(network_type):
     with open('addresses/'+fname) as f:
         address_list = []
         count = 0
-        for line in f:
-            # ネームスペースは除外する
-            if is_valid_symbol_address(line) == False:
-                continue
+        for line in f:              
             address_list.append(line.replace('\n', ''))
             count+=1
-            # 10件超えたらページ切り替え(アグボンの上限）
+            # 100件超えたらページ切り替え(アグボンの上限）
             if count > 99:
                 total_count += count
                 count = 0
                 address_book.append(address_list)
                 address_list = []
- 
         total_count += count
         address_book.append(address_list)
     return (address_book, total_count)

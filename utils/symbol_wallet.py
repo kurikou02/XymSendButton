@@ -10,6 +10,7 @@ import configparser
 
 from binascii import hexlify
 from symbolchain.facade.SymbolFacade import SymbolFacade
+from symbolchain.symbol.IdGenerator import generate_namespace_id
 
 from utils.key_manager import KeyManager
 
@@ -111,11 +112,11 @@ class Wallet:
     def _build_req_tx_msg(self, tx):
         signature = self._km.compute_signature(tx)
         json_payload = self._facade.transaction_factory.attach_signature(tx, signature)
-        print("*** tx ***")
+        print("*** tx status***")
         #print(tx)
         #print(hexlify(tx.serialize()))
         #print('---- ' * 20)        
-        print(f'Hash: {self._facade.hash_transaction(tx)}')
+        print(f'https://{self._node_url}:3001/transactionStatus/{self._facade.hash_transaction(tx)}')
         return json_payload
 
     def send_mosaic_transacton(self, deadline, fee, recipient_address, mosaics, msg_txt):
@@ -139,3 +140,6 @@ class Wallet:
         response = conn.getresponse()
         data = response.read()
         return data.decode()
+
+    def get_namespaceid(self, namespace):
+        return generate_namespace_id(namespace)

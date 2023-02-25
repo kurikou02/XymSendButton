@@ -5,6 +5,7 @@ import pathlib
 import os
 import evdev
 import time
+import numpy as np
 
 import datetime
 import http.client
@@ -19,6 +20,7 @@ from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
 from utils.utils import is_valid_symbol_address
 from utils.utils import read_addresslist
+from utils.utils import aliasToRecipient
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
@@ -35,6 +37,7 @@ def run(is_aggregate=False):
     # ノードからプロパティ情報取得
     node_properties = get_node_properties( wallet_config.get('node_url') )
     NETWORK_TYPE = node_properties[0]
+    NETWORK_TYPE_INT = 104 if NETWORK_TYPE == 'mainnet' else 152
     EPOCH_ADJUSTMENT = node_properties[1]
     MOSAICID = node_properties[2]
     GENERATOIN_HASH = node_properties[3]
@@ -65,9 +68,21 @@ def run(is_aggregate=False):
         (address_book, total_count) = read_addresslist(NETWORK_TYPE)
         # 合計送金料の再計算
         total_amount = amount * total_count
-        #print(address_book)
         print('total count = ' + str(total_count))
         print('total amount = ' + str(total_amount))
+    else:
+        # それ以外の場合は単発の送信先セット
+        recipient_address = send_config.get('recipient_address')
+        # ネームスペースの場合はアドレスに変換
+        if is_valid_symbol_address(recipient_address) == False:
+            namespace = recipient_address
+            # namespaceをバイト配列に変換
+            byte_array = wallet.get_namespaceid(namespace).to_bytes(8, 'big')
+            narray = np.frombuffer(byte_array, dtype=np.uint8)
+            # namespaceIdの形に変換(24byte)
+            namespaceid = aliasToRecipient(narray, NETWORK_TYPE_INT)
+            recipient_address = namespaceid.tobytes()
+
 
     # 送金量セーフティチェック
     if total_amount > AMOUNT_LIMIT:
@@ -91,9 +106,6 @@ def run(is_aggregate=False):
             device = evdev.InputDevice('/dev/input/event0')
             print('device = ' + str(device))
 
-            # 送信先アドレス
-            _recipient_address = send_config.get('recipient_address')
-            
             for event in device.read_loop():
                 if event.type == evdev.ecodes.EV_KEY:
                     if event.value == 1: # 0:KEYUP, 1:KEYDOWN
@@ -107,16 +119,30 @@ def run(is_aggregate=False):
                                 page = 0
                                 for address_list in address_book:
                                     print('Address Book page ' + str(page) )
+                                    # ネームスペースが混じっていたらアドレスに変換
+                                    for i, x in enumerate(address_list):
+                                        if is_valid_symbol_address(address_list[i]) == True:
+                                            continue
+                                        # namespaceをバイト配列に変換
+                                        byte_array = wallet.get_namespaceid(address_list[i]).to_bytes(8, 'big')
+                                        narray = np.frombuffer(byte_array, dtype=np.uint8)
+                                        # namespaceIdの形に変換(24byte)
+                                        namespaceid = aliasToRecipient(narray, NETWORK_TYPE_INT)
+                                        address_list[i] = namespaceid.tobytes()
+                                    # アグリゲートトランザクション送信
                                     deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
                                     status = wallet.send_mosaic_aggregate_transacton(deadline, fee, address_list, mosaics, send_config.get('msg_txt'))
                                     print('Send ' + str(total_amount) + 'XYM status = ' + str(status) )
                                     page += 1
                                     time.sleep(3)
+                                # アグリゲートトランザクションの場合はワンポチで終了
+                                print('Finish')
+                                return
                             else:
                                 # XYM送金(単発)
                                 deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
-                                status = wallet.send_mosaic_transacton(deadline, fee, _recipient_address, mosaics, send_config.get('msg_txt'))
-                                print('Send ' + str(amount) +'XYM to [' + str(_recipient_address) + '] status = ' + str(status) )
+                                status = wallet.send_mosaic_transacton(deadline, fee, recipient_address, mosaics, send_config.get('msg_txt'))
+                                print('Send ' + str(amount) +'XYM to [' + str(recipient_address) + '] status = ' + str(status) )
                             
                             print('waiting for input... (Ctr + Z to exit)')
                             time.sleep(3)

@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+import base64
 import pathlib
 import os
 import evdev
 import time
 import csv
+import numpy as np
 
 import datetime
 import http.client
@@ -18,6 +20,7 @@ from utils.symbol_wallet import Wallet
 from utils.utils import get_node_properties
 from utils.utils import is_valid_symbol_address
 from utils.utils import read_addresslist
+from utils.utils import aliasToRecipient
 
 # 送金量リミット
 AMOUNT_LIMIT = 1
@@ -40,6 +43,7 @@ def wallet_test(recipient_address='', is_aggregate=False):
     # ノードからプロパティ情報取得
     node_properties = get_node_properties( wallet_config.get('node_url') )
     NETWORK_TYPE = node_properties[0]
+    NETWORK_TYPE_INT = 104 if NETWORK_TYPE == 'mainnet' else 152
     EPOCH_ADJUSTMENT = node_properties[1]
     MOSAICID = node_properties[2]
     GENERATOIN_HASH = node_properties[3]
@@ -65,10 +69,6 @@ def wallet_test(recipient_address='', is_aggregate=False):
     total_amount = amount
     mosaics =  [{'mosaic_id':MOSAICID,'amount':int(amount * 1000000)}]
 
-    # 送信先アドレス
-    if recipient_address == '':
-        recipient_address = send_config.get('recipient_address')
-
     # アグリゲートトランザクションの場合はアドレスリスト取得
     address_book = []
     if is_aggregate == True:
@@ -77,6 +77,19 @@ def wallet_test(recipient_address='', is_aggregate=False):
         total_amount = amount * total_count
         print(address_book)
         print(total_amount)
+    else:
+        # それ以外の場合は単発送信
+        if recipient_address == '':
+            recipient_address = send_config.get('recipient_address')
+        # ネームスペースの場合はアドレスに変換
+        if is_valid_symbol_address(recipient_address) == False:
+            namespace = recipient_address
+            # namespaceをバイト配列に変換
+            byte_array = wallet.get_namespaceid(namespace).to_bytes(8, 'big')
+            narray = np.frombuffer(byte_array, dtype=np.uint8)
+            # namespaceIdの形に変換(24byte)
+            namespaceid = aliasToRecipient(narray, NETWORK_TYPE_INT)
+            recipient_address = namespaceid.tobytes()
 
     # 送金量セーフティチェック
     if total_amount > AMOUNT_LIMIT:
@@ -92,17 +105,27 @@ def wallet_test(recipient_address='', is_aggregate=False):
                 print('Your account`s XYM amount is ' + str( mosaic_info['amount']))
                 print('Check your Account and Selected Network Type')
 
-    # 送金時間
+    # 送金時間セット
     deadline = (int((datetime.datetime.today() + datetime.timedelta(hours=2)).timestamp()) - EPOCH_ADJUSTMENT) * 1000
 
     # XYM送金(アグリゲートトランザクション)
     if is_aggregate == True:
-        print('アグリゲートトランザクション送るよ')
+        print('Send Aggregate Transaction')
         print('my address :' + wallet.get_my_address())
         page = 0
         for addresses in address_book:
             print('Address Book page ' + str(page) )
             print(addresses)
+            # ネームスペースが混じってたらアドレスに変換
+            for i, x in enumerate(addresses):
+                if is_valid_symbol_address(addresses[i]) == True:
+                    continue
+                # namespaceをバイト配列に変換
+                byte_array = wallet.get_namespaceid(addresses[i]).to_bytes(8, 'big')
+                narray = np.frombuffer(byte_array, dtype=np.uint8)
+                # namespaceIdの形に変換(24byte)
+                namespaceid = aliasToRecipient(narray, NETWORK_TYPE_INT)
+                addresses[i] = namespaceid.tobytes()
             status = wallet.send_mosaic_aggregate_transacton(deadline, fee, addresses, mosaics, send_config.get('msg_txt'))
             print('status:' + str(status) )
             page+=1
@@ -110,16 +133,17 @@ def wallet_test(recipient_address='', is_aggregate=False):
 
     # XYM送金（単発）
     print('my address :' + wallet.get_my_address())
-    print('to address :' + recipient_address)
+    print('to address :' + str(recipient_address))
     status = wallet.send_mosaic_transacton(deadline, fee, recipient_address, mosaics, send_config.get('msg_txt'))
     print('status:' + str(status) )
 
 if __name__ == '__main__':
 
     # テスト送金(単発)
-    wallet_test()
+    #wallet_test('kuri_dev_test')
+
+    # テスト送金(単発)
+    #wallet_test('TBXFN2GVITXPEQPRLOJXDSZRC7G3XB5P6BSNOOI')
 
     # テスト送金（アグリゲート）
     #wallet_test('',True)
-
-    #read_addresses('testnet')
