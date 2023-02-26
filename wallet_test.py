@@ -27,8 +27,9 @@ class WalletTest:
     # 初期化
     def __init__(self, network_type, is_aggregate=False, amount_limit=100):
         # 設定ファイル読み込み
+        print('******** Load config and initialize ********')
         config = configparser.ConfigParser()
-        config.read('./config/config.ini')
+        config.read(f'./config/config_{network_type}.ini')
         self._wallet_config = config['Wallet']
         self._send_config = config['SendXymParam']
         # パラメータセット       
@@ -39,6 +40,12 @@ class WalletTest:
         self._epoch_adjustment = ''
         self._xym_mosaic_id = ''
         self._wallet = self._make_wallet()
+
+        print('networktype = ' + network_type)
+        print('isAggregate = ' + str(is_aggregate))
+        print(f'Max fee = {self._send_config.get("max_fee")}')
+        print(f'Amount = {self._send_config.get("amount")}')
+        print(f'Send Message = {self._send_config.get("msg_txt")}')
 
     # Symbolウォレット生成
     def _make_wallet(self):
@@ -162,7 +169,10 @@ class WalletTest:
                 return address
             else:
                 return ''
-
+        else:
+            print(f'Err {recipient}:アドレスに紐づかないネームスペース')
+            return ''
+            
     # ウォレットの動作テスト関数
     def send_xym_test(self, recipient_address=''):
         # 送信元アカウント情報取得
@@ -244,8 +254,9 @@ class WalletTest:
 if __name__ == '__main__':
 
     # テスト設定
-    network_type = 'testnet'
-    is_aggregate = True
+    network_type = 'mainnet'
+    #network_type = 'testnet'
+    is_aggregate = False  
 
     # アグリゲートトランザクションのテスト
     if is_aggregate == True:
@@ -254,5 +265,5 @@ if __name__ == '__main__':
         exit
 
     # 単発送信のテスト
-    #wallet_test.send_xym_test('kuri_dev_test')
-    #wallet_test.send_xym_test('TA6KDHDD4WXVV5777FQUEPSBPH56JPUPLONDZGA')
+    wallet_test = WalletTest(network_type,is_aggregate)
+    wallet_test.send_xym_test()

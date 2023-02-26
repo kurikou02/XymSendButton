@@ -28,8 +28,9 @@ class SendXymButton():
     # 初期化
     def __init__(self, network_type='', is_aggregate=False, amount_limit=100):
         # 設定ファイル読み込み
+        print('******** Load config and initialize ********')
         config = configparser.ConfigParser()
-        config.read('./config/config.ini')
+        config.read(f'./config/config_{network_type}.ini')
         self._wallet_config = config['Wallet']
         self._send_config = config['SendXymParam']
         # パラメータセット       
@@ -40,6 +41,12 @@ class SendXymButton():
         self._epoch_adjustment = ''
         self._xym_mosaic_id = ''
         self._wallet = self._make_wallet()
+
+        print('networktype = ' + network_type)
+        print('isAggregate = ' + str(is_aggregate))
+        print(f'Max fee = {self._send_config.get("max_fee")}')
+        print(f'Amount = {self._send_config.get("amount")}')
+        print(f'Send Message = {self._send_config.get("msg_txt")}')
 
     # Symbolウォレット生成
     def _make_wallet(self):
@@ -158,11 +165,17 @@ class SendXymButton():
             # アドレス形式を変換(Hex to base32)
             raw_address = alias['address']
             address = base64.b32encode(binascii.unhexlify(raw_address)).decode('utf-8')[:-1]
+            # アドレス情報の取得成否
+            if self._is_target_address_valid(address) == False:
+                return ''
             # 受信制限チェック
             if self._is_restrictions_address(address) == False:
                 return address
             else:
                 return ''
+        else:
+            print(f'Err {recipient}:アドレスに紐づかないネームスペース')
+            return ''
 
     # Blutoothボタンが押されたら繰り返しXYMを投げる
     def run( self, recipient_address='' ):
@@ -187,6 +200,7 @@ class SendXymButton():
                 return
             # 合計送金料の再計算
             total_amount = amount * total_count
+            print(address_book)
         else:
             # 単発送信の場合 -> 宛先チェック
             if recipient_address == '':
@@ -273,8 +287,9 @@ if __name__ == '__main__':
     # コマンドライン引数受け取り
     args = sys.argv
     if len(args)>1:
-        is_aggregate = (args[1] == '--aggregate') 
-        print('isAggregate = ' + str(is_aggregate))
+        network_type = 'mainnet' if args[1] == 'mainnet' else 'testnet' 
+    if len(args)>2:
+        is_aggregate = (args[2] == '--aggregate') 
     
     # BlutoothボタンでXYM送金
     button = SendXymButton(network_type, is_aggregate)

@@ -5,20 +5,25 @@ XYM送金に使用するアカウントの秘密鍵とパスフレーズを入�
 
 from utils import genarate_private_key_file
 
-NETWORK_TYPE = 'testnet'
-#NETWORK_TYPE = 'mainnet'
-
-# テストネット用設定
-if NETWORK_TYPE == 'testnet':
+# ---------------------------
+# # テストネット向け設定
+# ---------------------------
+def testnet_pem():
     pk = '****************************************************************'
     pass_phrase = '**********'
-    filepath = './TestnetAcount'
+    filepath = './TestnetAccount'
     genarate_private_key_file(filepath, pk, pass_phrase)
     
 
-# メインネット用設定
-if NETWORK_TYPE == 'mainnet':
+# ---------------------------
+# メインネット向け設定
+# ---------------------------
+def mainnet_pem():
     pk = '****************************************************************'
     pass_phrase = '**********'
     filepath = './MainnetAccount'
     genarate_private_key_file(filepath, pk, pass_phrase)
+
+
+testnet_pem()
+mainnet_pem()
