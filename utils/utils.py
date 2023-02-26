@@ -69,24 +69,27 @@ def aliasToRecipient(namespaceId: np.ndarray, networkType: int) -> np.ndarray:
     padded[9:24] = np.tile(np.array([0x00], dtype=np.uint8), 15)
     return padded
 
-# アドレスリストの読み込み
+# アドレスリスト(CSV)の読み込み
 def read_addresslist(network_type):
     address_book = []
     page = 0
     total_count = 0
     fname = 'addresses_' + str(network_type) + '.csv'
     with open('addresses/'+fname) as f:
-        address_list = []
-        count = 0
-        for line in f:              
-            address_list.append(line.replace('\n', ''))
-            count+=1
-            # 100件超えたらページ切り替え(アグボンの上限）
-            if count > 99:
-                total_count += count
-                count = 0
-                address_book.append(address_list)
-                address_list = []
-        total_count += count
-        address_book.append(address_list)
+        try:
+            address_list = []
+            count = 0
+            for line in f:              
+                address_list.append(line.replace('\n', ''))
+                count+=1
+                # 100件超えたらページ切り替え(アグボンの上限）
+                if count > 99:
+                    total_count += count
+                    count = 0
+                    address_book.append(address_list)
+                    address_list = []
+            total_count += count
+            address_book.append(address_list)
+        except FileNotFoundError as err:  
+            print(err)  # errの中身を表示
     return (address_book, total_count)

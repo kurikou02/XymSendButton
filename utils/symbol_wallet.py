@@ -54,11 +54,39 @@ class Wallet:
        }
        return self._send_accounts_req(req_msg)
 
+    def check_account_info_with_address(self, addresses):
+       req_msg = {
+           "addresses": addresses
+       }
+       return self._send_accounts_req(req_msg)
+
+    def check_restrictions_info_with_address(self, address):
+       return self._send_restrictions_req(address)
+
+    def check_namespace_info(self, namespaceId):
+       return self._send_namespace_req(namespaceId)
+
     def _send_accounts_req(self, req_msg):
         json_req_msg = json.dumps(req_msg)
         headers = {'Content-type': 'application/json'}
         conn = http.client.HTTPConnection(self._node_url,3000) 
         conn.request("POST", "/accounts", json_req_msg, headers)
+        response = conn.getresponse()
+        data = response.read()
+        return data.decode()
+
+    def _send_restrictions_req(self, req_param):
+        headers = {'Content-type': 'application/json'}
+        conn = http.client.HTTPConnection(self._node_url,3000) 
+        conn.request("GET", f"/restrictions/account/{req_param}")
+        response = conn.getresponse()
+        data = response.read()
+        return data.decode()
+
+    def _send_namespace_req(self, req_param):
+        headers = {'Content-type': 'application/json'}
+        conn = http.client.HTTPConnection(self._node_url,3000) 
+        conn.request("GET", f"/namespaces/{req_param}")
         response = conn.getresponse()
         data = response.read()
         return data.decode()
